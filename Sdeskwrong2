@@ -1,0 +1,1224 @@
+<###############################################################################
+
+            User Control Version 1.0   Author: Jack O'Connell
+
+###############################################################################>
+
+function Write-Log 
+{ 
+    [CmdletBinding()] 
+    param ( 
+        [Parameter(Mandatory)] 
+        [string]$Message 
+    ) 
+    try 
+    { 
+        $DateTime = Get-Date -Format "MM-dd-yy HH:mm:ss" 
+        Add-Content -Value "$DateTime - $Message" -Path "\\sancifs\intech\Shared\Service_Delivery\IT_Support\IT_Automation\Jack\Account Control Logs\AccountControl.log" 
+    } 
+    catch 
+    { 
+        Write-Error $_.Exception.Message 
+    } 
+}
+
+import-module Activedirectory
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Web
+[System.Windows.Forms.Application]::EnableVisualStyles()
+# Main Form 
+$mainForm                           = New-Object System.Windows.Forms.Form
+#$mainForm.FormBorderStyle = 'Fixed3D'
+$mainform.MaximizeBox               = 'false'
+$mainForm.Font                      = "Verdana,8.25"
+$mainForm.Text                      = "User Control GUI"
+$mainForm.ForeColor                 = "Black"
+$mainForm.BackColor                 = "gainsboro"
+$mainForm.Width                     = 675
+$mainForm.Height                    = 630
+$mainform.MaximumSize               = New-Object System.Drawing.Size(675, 800)
+$mainform.MinimumSize               = New-Object System.Drawing.Size(675, 630)
+$mainform.autoscale                 = $False
+
+
+$BlackLineUP                        = New-Object System.Windows.Forms.label
+$BlackLineUP.Location               = "375,70"
+$BlackLineUP.Height                 = 255
+$BlackLineUP.Width                  = 2
+$BlackLineUP.backcolor              = "gray"
+#$BlackLine.Text = "Account Control"
+$mainForm.Controls.Add($BlackLineUP)
+
+$BlackLineacross                    = New-Object System.Windows.Forms.label
+$BlackLineacross.Location           = "377,110"
+$BlackLineacross.Height             = 2
+$BlackLineacross.Width              = 220
+$BlackLineacross.backcolor          = "gray"
+#$BlackLine.Text = "Account Control"
+$mainForm.Controls.Add($BlackLineacross)
+
+$BlackLineacross2                   = New-Object System.Windows.Forms.label
+$BlackLineacross2.Location          = "377,155"
+$BlackLineacross2.Height            = 2
+$BlackLineacross2.Width             = 220
+$BlackLineacross2.backcolor         = "gray"
+#$BlackLine.Text = "Account Control"
+$mainForm.Controls.Add($BlackLineacross2)
+
+$BlackLineacross3                   = New-Object System.Windows.Forms.label
+$BlackLineacross3.Location          = "377,300"
+$BlackLineacross3.Height            = 2
+$BlackLineacross3.Width             = 220
+$BlackLineacross3.backcolor         = "gray"
+#$BlackLine.Text = "Account Control"
+$mainForm.Controls.Add($BlackLineacross3)
+
+$ExPDate                            = New-Object System.Windows.Forms.Label
+$ExPDate.Location                   = "165,190"
+$ExPDate.Height                     = 25
+$ExPDate.Width                      = 200
+
+$AccountInfoLabel                   = New-Object System.Windows.Forms.label
+$AccountInfoLabel.Font              = "Verdana, 9.75pt"
+#$AccountInfoLabel.FormattingEnabled = $True
+#$AccountInfoLabel.ItemHeight = 15
+$AccountInfoLabel.Name              = "AccountInfoLabel"
+$AccountInfoLabel.TabIndex          = 4
+$AccountInfoLabel.BackColor         = "gainsboro"
+$AccountInfoLabel.Location          = New-Object System.Drawing.Size(380,70) 
+$AccountInfoLabel.Size              = New-Object System.Drawing.Size(280,280) 
+#
+
+$mainForm.Controls.Add($AccountInfoLabel) 
+
+$AccountInfoLabel.text = " Email:`n `n `n LastLogonDate:`n `n `n OU:`n  `n `n `n `n `n `n `n `n Enabled: "
+
+
+
+########################################################################################################################
+#                    Functions - many from different sources, left in description where they had them
+########################################################################################################################
+
+
+
+function Load-ListBox 
+    {
+    <#
+        .SYNOPSIS
+            This functions helps you load items into a ListBox or CheckedListBox.
+    
+        .DESCRIPTION
+            Use this function to dynamically load items into the ListBox control.
+    
+        .PARAMETER  ListBox
+            The ListBox control you want to add items to.
+    
+        .PARAMETER  Items
+            The object or objects you wish to load into the ListBox's Items 
+			collection.
+    
+        .PARAMETER  DisplayMember
+            Indicates the property to display for the items in this control.
+        
+        .PARAMETER  Append
+            Adds the item(s) to the ListBox without clearing the Items collection.
+        
+        .EXAMPLE
+            Load-ListBox $ListBox1 "Red", "White", "Blue"
+        
+        .EXAMPLE
+            Load-ListBox $listBox1 "Red" -Append
+            Load-ListBox $listBox1 "White" -Append
+            Load-ListBox $listBox1 "Blue" -Append
+        
+        .EXAMPLE
+            Load-ListBox $listBox1 (Get-Process) "ProcessName"
+    #>
+        Param (
+            [ValidateNotNull()]
+            [Parameter(Mandatory=$true)]
+            [System.Windows.Forms.ListBox]$ListBox,
+            [ValidateNotNull()]
+            [Parameter(Mandatory=$true)]
+            $Items,
+            [Parameter(Mandatory=$false)]
+            [string]$DisplayMember,
+            [switch]$Append
+        )
+        
+        if(-not $Append)
+        {
+            $listBox.Items.Clear()    
+        }
+        
+        if($Items -is [System.Windows.Forms.ListBox+ObjectCollection])
+        {
+            $listBox.Items.AddRange($Items)
+        }
+        elseif ($Items -is [Array])
+        {
+            $listBox.BeginUpdate()
+            foreach($obj in $Items)
+            {
+                $listBox.Items.Add($obj)
+            }
+            $listBox.EndUpdate()
+        }
+        else
+        {
+            $listBox.Items.Add($Items)    
+        }
+    
+        $listBox.DisplayMember = $DisplayMember    
+    }
+function ConvertTo-DataTable
+{
+    <#
+    .Synopsis
+        Creates a DataTable from an object
+    .Description
+        Creates a DataTable from an object, containing all properties (except built-in properties from a database)
+    .Example
+        Get-ChildItem| Select Name, LastWriteTime | ConvertTo-DataTable
+    .Link
+        Select-DataTable
+    .Link
+        Import-DataTable
+    .Link
+        Export-Datatable
+    #> 
+    [OutputType([Data.DataTable])]
+    param(
+    # The input objects
+    [Parameter(Position=0, Mandatory=$true, ValueFromPipeline = $true)]
+    [PSObject[]]
+    $InputObject
+    ) 
+ 
+    begin { 
+        
+        $outputDataTable = new-object Data.datatable   
+          
+        $knownColumns = @{}
+        
+        
+    } 
+
+    process {         
+               
+        foreach ($In in $InputObject) { 
+            $DataRow = $outputDataTable.NewRow()   
+            $isDataRow = $in.psobject.TypeNames -like "*.DataRow*" -as [bool]
+
+            $simpleTypes = ('System.Boolean', 'System.Byte[]', 'System.Byte', 'System.Char', 'System.Datetime', 'System.Decimal', 'System.Double', 'System.Guid', 'System.Int16', 'System.Int32', 'System.Int64', 'System.Single', 'System.UInt16', 'System.UInt32', 'System.UInt64')
+
+            $SimpletypeLookup = @{}
+            foreach ($s in $simpleTypes) {
+                $SimpletypeLookup[$s] = $s
+            }            
+            
+            
+            foreach($property in $In.PsObject.properties) {   
+                if ($isDataRow -and 
+                    'RowError', 'RowState', 'Table', 'ItemArray', 'HasErrors' -contains $property.Name) {
+                    continue     
+                }
+                $propName = $property.Name
+                $propValue = $property.Value
+                $IsSimpleType = $SimpletypeLookup.ContainsKey($property.TypeNameOfValue)
+
+                if (-not $outputDataTable.Columns.Contains($propName)) {   
+                    $outputDataTable.Columns.Add((
+                        New-Object Data.DataColumn -Property @{
+                            ColumnName = $propName
+                            DataType = if ($issimpleType) {
+                                $property.TypeNameOfValue
+                            } else {
+                                'System.Object'
+                            }
+                        }
+                    ))
+                }                   
+                
+                $DataRow.Item($propName) = if ($isSimpleType -and $propValue) {
+                    $propValue
+                } elseif ($propValue) {
+                    [PSObject]$propValue
+                } else {
+                    [DBNull]::Value
+                }
+                
+            }   
+            $outputDataTable.Rows.Add($DataRow)   
+        } 
+        
+    }  
+      
+    end 
+    { 
+        ,$outputDataTable
+
+    } 
+}
+
+
+function OnApplicationLoad {
+	#Note: This function is not called in Projects
+	#Note: This function runs before the form is created
+	#Note: To get the script directory in the Packager use: Split-Path $hostinvocation.MyCommand.path
+	#Note: To get the console output in the Packager (Windows Mode) use: $ConsoleOutput (Type: System.Collections.ArrayList)
+	#Important: Form controls cannot be accessed in this function
+	#TODO: Add snapins and custom code to validate the application load
+	
+	return $true #return true for success or false for failure
+}
+
+function OnApplicationExit {
+	#Note: This function is not called in Projects
+	#Note: This function runs after the form is closed
+	#TODO: Add custom code to clean up and unload snapins when the application exits
+	
+	$script:ExitCode = 0 #Set the exit code for the Packager
+}
+
+#endregion Application Functions
+
+
+#function Call-Demo-ADSITreeView_pff {
+
+	#----------------------------------------------
+	#region Import the Assemblies
+	#----------------------------------------------
+	[void][reflection.assembly]::Load('System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089')
+	#endregion Import Assemblies
+
+	#----------------------------------------------
+	#region Generated Form Objects
+	#----------------------------------------------
+    [System.Windows.Forms.Application]::EnableVisualStyles()
+    $listbox1                       = New-Object 'System.Windows.Forms.Listbox'
+    $buttonCheck                    = New-Object 'System.Windows.Forms.Button' 
+    $buttonUnlock                   = New-Object 'System.Windows.Forms.Button'
+    $buttonCompareAD                = New-Object 'System.Windows.Forms.Button'
+	$buttonNewSearch                = New-Object 'System.Windows.Forms.Button'
+	$nodepath                       = New-Object 'System.Windows.Forms.TextBox'
+	$nodename                       = New-Object 'System.Windows.Forms.TextBox'
+	$treeview1                      = New-Object 'System.Windows.Forms.TreeView'
+	$TreebuttonOK                   = New-Object 'System.Windows.Forms.Button'
+	$InitialFormWindowState         = New-Object 'System.Windows.Forms.FormWindowState'
+	#endregion Generated Form Objects
+
+	#----------------------------------------------
+	# User Generated Script
+	#----------------------------------------------
+	
+	
+	function OnApplicationLoad {
+		#Note: This function is not called in Projects
+		#Note: This function runs before the form is created
+		#Note: To get the script directory in the Packager use: Split-Path $hostinvocation.MyCommand.path
+		#Note: To get the console output in the Packager (Windows Mode) use: $ConsoleOutput (Type: System.Collections.ArrayList)
+		#Important: Form controls cannot be accessed in this function
+		#TODO: Add snapins and custom code to validate the application load
+		
+		return $true #return true for success or false for failure
+	}
+	
+	
+	function OnApplicationExit {
+		#Note: This function is not called in Projects
+		#Note: This function runs after the form is closed
+		#TODO: Add custom code to clean up and unload snapins when the application exits
+		
+		$script:ExitCode = 0 #Set the exit code for the Packager
+	}
+	
+	$FormEvent_Load={
+		$rootCN=[adsi]''
+		$nodeName=$rootCN.Name
+		$key="LDAP://$($rootCN.DistinguishedName)"
+		$treeview1.Nodes.Add($key,$nodeName)	
+	}
+	
+	
+	$treeview1_NodeMouseClick=[System.Windows.Forms.TreeNodeMouseClickEventHandler]{
+		$global:thisOU=[adsi]$_.Node.Name
+		$nodename.Text = $global:thisOU.Name
+		if( -not $_.Node.Nodes){
+			$nodepath.Text=$global:thisOU.DistinguishedName
+			$searcher=[adsisearcher]'objectClass=organizationalunit'
+			$searcher.SearchRoot=$_.Node.Name
+			$searcher.SearchScope='OneLevel'
+			$searcher.PropertiesToLoad.Add('name')
+			$OUs=$searcher.Findall()
+			foreach($ou in $OUs){
+				$_.Node.Nodes.Add($ou.Path,$ou.Properties['name'])
+			}
+		}
+		$_.Node.Expand()
+	}
+	
+	function Get-Ous{
+		$sb={
+			function Parse-Tree{
+			    param(
+			        $CurrentNode
+			    )
+			    Write-Host "$($CurrentNode.DistinguishedName)" -fore green
+			    Get-ADOrganizationalUnit -Filter * -SearchScope OneLevel -SearchBase $CurrentNode.distinguishedName |
+			        ForEach-Object{
+			            $node=[pscustomobject]@{        
+			                Name=$_.Name
+			                DistinguishedName=$_.DistinguishedName
+			                Children=@()
+			            }
+			            $CurrentNode.Children+=$node
+			            Parse-Tree -CurrentNode $node
+			        }
+			}
+	
+			$root=(Get-AdDomain).DistinguishedName
+			$node=[pscustomobject]@{        
+			    Name='Root'
+			    DistinguishedName=$root
+			    Children=@()
+			}
+			Import-Module ActiveDirectory
+			Parse-Tree -CurrentNode $node
+			$node
+		}
+	
+	}
+	# --End User Generated Script--
+	#----------------------------------------------
+	#region Generated Events
+	#----------------------------------------------
+	
+	$Form_StateCorrection_Load=
+	{
+		#Correct the initial state of the form to prevent the .Net maximized form issue
+		$form1.WindowState = $InitialFormWindowState
+	}
+	
+	$Form_Cleanup_FormClosed=
+	{
+		#Remove all event handlers from the controls
+		try
+		{
+			$treeview1.remove_NodeMouseClick($treeview1_NodeMouseClick)
+			$form1.remove_Load($FormEvent_Load)
+			$form1.remove_Load($Form_StateCorrection_Load)
+			$form1.remove_FormClosed($Form_Cleanup_FormClosed)
+		}
+		catch [Exception]
+		{ }
+	}
+	#endregion Generated Events
+
+
+################################################################################################################################################
+#                                               MAIN FORM TOP LABEL  - username - Searchbar - Search Box
+#################################################################################################################################################
+
+$cred = $env:UserName
+
+$title = "please select the user you'd like to amend"
+
+$SearchtextBox                  = New-Object System.Windows.Forms.TextBox
+$SearchtextBox.Location         = "500,10"
+$SearchtextBox.Size             = "150,25"                   
+$SearchtextBox.ForeColor        = "MediumBlue"
+$SearchtextBox.BackColor        = "White"
+
+
+
+
+$SearchButton                   = New-Object System.Windows.Forms.Button
+$SearchButton.Location          = "420,10"
+$SearchButton.Size              = "75,20"
+$SearchButton.ForeColor         = "Black"
+$SearchButton.BackColor         = "Azure"
+$SearchButton.Text              = "Search"
+$searchbutton.flatstyle          = "Popup"
+$SearchButton.font              = New-Object System.Drawing.Font("Verdana",8,[System.Drawing.FontStyle]::Bold)
+$SearchButton.add_Click({
+
+    #gets each bit of information as a seperate variable, changes user to a global variable to be used throughout the rest of the script 
+
+$user = $searchtextbox.text
+$username                       = "*$user*"
+$Global:ADresult = get-aduser -f {name -like $username} -property * | Select-object Name, samaccountname, Mail, lastlogondate, lockedout, Passwordexpired, Accountexpirationdate, @{l='OU';e={$_.DistinguishedName.split(',')[3].split('=')[1]}}, @{l='OU2';e={$_.DistinguishedName.split(',')[2].split('=')[1]}}, @{l='OU3';e={$_.DistinguishedName.split(',')[3].split('=')[1]}}, @{l='OU4';e={$_.DistinguishedName.split(',')[4].split('=')[1]}}, @{l='OU5';e={$_.DistinguishedName.split(',')[5].split('=')[1]}}, @{l='OU6';e={$_.DistinguishedName.split(',')[6].split('=')[1]}} | out-gridview -outputmode single -title $title 
+$Global:EndUser = $Global:AdResult | select-object -expandproperty SamAccountName
+
+"result = $Global:EndUser" 
+
+$UserNameLabel.Text = "User: $Global:EndUser" 
+
+
+$Global:MailInfo = get-aduser -identity $Global:EndUser -property * | Select-object  Mail  -expandproperty Mail 
+$LLInfo          = get-aduser -identity $Global:EndUser -property * | Select-object  LastLogonTimestamp  -expandproperty LastLogonTimestamp 
+$LLTime          = [datetime]::FromFileTime($LLinfo).tostring("dd/MM/yyyy  -   HH:mm:ss")
+$OU1             = get-aduser -identity $Global:EndUser -property * | Select-object @{l='OU1';e={$_.DistinguishedName.split(',')[1].split('=')[1]}} | Select-object OU1 -expandproperty Ou1
+$OU2             = get-aduser -identity $Global:EndUser -property * | Select-object @{l='OU2';e={$_.DistinguishedName.split(',')[2].split('=')[1]}} | Select-object OU2 -expandproperty Ou2
+$OU3             = get-aduser -identity $Global:EndUser -property * | Select-object @{l='OU3';e={$_.DistinguishedName.split(',')[3].split('=')[1]}} | Select-object OU3 -expandproperty Ou3
+$OU4             = get-aduser -identity $Global:EndUser -property * | Select-object @{l='OU4';e={$_.DistinguishedName.split(',')[4].split('=')[1]}} | Select-object OU4 -expandproperty OU4
+$OU5             = get-aduser -identity $Global:EndUser -property * | Select-object @{l='OU5';e={$_.DistinguishedName.split(',')[5].split('=')[1]}} | Select-object OU5 -expandproperty OU5
+$OU6             = get-aduser -identity $Global:EndUser -property * | Select-object @{l='OU6';e={$_.DistinguishedName.split(',')[6].split('=')[1]}} | Select-object OU6 -expandproperty OU6
+$EnabledCheck    = get-aduser -identity $global:EndUser -property * | Select-object  enabled -ExpandProperty Enabled
+
+
+#$OU1F =  $ou1font.Font = [System.Drawing.Font]::new("Verdana", 12, [System.Drawing.FontStyle]::Bold)
+
+$global:EXPDATETEXT = Get-ADUser -identity $Global:EndUser -Properties AccountExpirationDate | Select-object @{Name="AccountExpires";Expression={[datetime]::FromFileTime($_.properties."AccountExpires")}} -expandproperty AccountExpirationDate
+$DateStr = $EXPDATETEXT.ToString("dd/MM/yyyy HH:mm:ss")
+$ExPDate.Text = "Current ExpirationDate $DateStr"
+#$ExpFormat = [datetime]::FromFileTime($global:ExPDateText).tostring("dd/MM/yyyy HH:mm:ss")
+#$ExPDate.Text = "Current ExpirationDate $Expformat" 
+
+$AccountInfoLabel.text = "Email:  `n $Global:MailInfo `n `nLastLogonDate: `n $LLtime`n `nOU:`n`n $OU1 `n $OU2 `n $OU3 `n $OU4 `n $OU5 `n $OU6 `n `n Enabled: $EnabledCheck"
+
+$listbox1.items.clear()
+
+})
+
+"result = $Global:EndUser"
+
+$mainform.Controls.add($SearchButton)
+$mainForm.Controls.Add($SearchtextBox) 
+
+
+#------------------------------
+# Top Bar of Form
+#------------------------------
+$Picture                            = (Get-item ("\\sancifs\intech\Shared\Service_Delivery\IT_Support\IT_Automation\Jack\Gizmo Scripts\150px-Kirklees-logo.png"))
+$img                                = [System.Drawing.Image]::Fromfile($Picture)
+$pictureBox                         = new-object System.Windows.Forms.PictureBox
+#$pictureBox.Width = $img.Size.Width
+#$pictureBox.Height = $img.Size.Height
+$Picturebox.Size                    = New-Object System.Drawing.Size(40,40)
+$pictureBox.Location                = New-object system.drawing.size (370, 0)
+$pictureBox.Image                   = $img
+$picturebox.backcolor               = "#FF5DBCD2"
+$picturebox.BringToFront();
+
+$mainform.controls.add($pictureBox)
+
+# MainForm Top Label
+$selectLabel                        = New-Object System.Windows.Forms.Label
+$selectLabel.Location               = "0,0"
+$selectLabel.Height                 = 20
+$selectLabel.Width                  = 675
+$Selectlabel.backcolor              = "#FF5DBCD2"
+$selectLabel.Text                   = "Account Control"
+$mainForm.Controls.Add($selectLabel)
+
+$BlackLine                          = New-Object System.Windows.Forms.Label
+$BlackLine.Location                 = "0,40"
+$BlackLine.Height                   = 2
+$BlackLine.Width                    = 675
+$BlackLine.backcolor                = "Black"
+#$BlackLine.Text = "Account Control"
+$mainForm.Controls.Add($BlackLine)
+
+#UserName Label
+$UserNameLabel                      = New-Object System.Windows.Forms.Label
+$UserNameLabel.Location             = "0,20"
+$UserNameLabel.Height               = 22
+$UserNameLabel.Width                = 675
+$usernamelabel.backcolor            = "#FF5DBCD2"
+$UserNameLabel.Font                 = [System.Drawing.Font]::new("Verdana", 12, [System.Drawing.FontStyle]::Bold)
+$UserNameLabel.Text                 = "User: $Global:EndUser"
+$mainForm.Controls.Add($UserNameLabel)
+
+######################################################################################################################################################################################################
+#                                                   Lockouts          
+#######################################################################################################################################################################################################
+
+
+
+#$mainForm.Controls.Add($)
+
+$buttonCheck_Click={
+        
+    # Get the Current text in $textbox1
+    $name = $textbox1.Text
+    $Global:PWexpire = (Get-ADUser -Identity $Global:EndUser -Properties msDS-UserPasswordExpiryTimeComputed).'msDS-UserPasswordExpiryTimeComputed' | ForEach-Object -Process {[datetime]::FromFileTime($_).tostring("dd-MM-yyyy-HH:mm:ss") } 
+
+    # Search for this account in the current domain
+    $Searcher = [ADSISearcher]"(sAMAccountName=$Global:EndUser)"
+    $Results = $Searcher.FindOne()
+    
+        
+    
+        if ($Results -ne $null){
+        # If an Account is found do the following
+       
+        # Here we check the property "LockOutTime", if it is greater that 0
+        # this mean the account is lockedout
+        if($Results.properties.lockouttime -gt 0){
+            # Show the information in the ListBox
+            Load-ListBox `
+                -ListBox $listBox1 `
+                -Items "$Global:EndUser - Account Locked Out - Password expires on $Global:PWExpire" 
+                Write-Log "$Global:EndUser - Account Locked Out- Password expires on $Global:PWExpire    ran by $cred"`
+                -Append
+               # $checkbox2.checked -eq $true
+        }else{
+            # Show the information in the ListBox
+            Load-ListBox `
+                -ListBox $listBox1 `
+                -Items "$Global:EndUser - Account Not Locked - Password expires on $Global:PWExpire"`
+                -Append
+                 Write-Log "$Global:EndUser - Account Not Locked - Password expires on $Global:PWExpire    ran by $cred"
+                }
+         }else {
+            # Show the information in the ListBox
+            Load-ListBox `
+                -ListBox $ `
+                -Items "$Global:EndUser - Account Not Found" `
+                -Append}
+            
+}
+
+$buttonUnlock_Click={
+        
+    # Get the Current text in $textbox1
+    #$name = $textbox1.Text
+   
+    #get-aduser "$Name" -property * | Select-Object accountexpirationdate -expandproperty accountexpirationdate
+    # Search for this account in the current domain
+    $Searcher = [ADSISearcher]"(sAMAccountName=$Global:EndUser)"
+    $Results = $Searcher.FindOne()
+    
+    if ($Results -ne $null){
+        # If an Account is found do the following
+        
+        # Get the current date and time
+        $DateFormat = Get-Date -Format "yyyy/MM/dd-HH:mm:ss"
+        
+        # Here we get Unlock the account
+        $unlock = [ADSI]"$($Results.properties.adspath)"
+        $unlock.Put("lockouttime",0)
+        $unlock.SetInfo()
+        
+        # Show the information in the ListBox
+        Load-ListBox `
+            -ListBox $listBox1 `
+            -Items "$Global:EndUser - Account Unlocked" `
+            -Append
+            Write-Log "$Global:EndUser - Account Unlocked    ran by $cred"
+    }else {
+        # Show the information in the ListBox
+        Load-ListBox `
+            -ListBox $listbox1 `
+            -Items "$Global:EndUser - Account Not Found!" `
+            -Append
+            Write-Log "$Global:EndUser - Account Not Found    ran by $cred"
+        }
+           
+}#$buttonUnlock_Click
+
+$textbox1_TextChanged={
+    # This part will check that the Textbox is not empty
+    if ($textbox1.Text -eq "") {
+        # If Empty, Back Color of the Textbox1 will be Red
+        $textbox1.BackColor =  [System.Drawing.Color]::FromArgb(255, 128, 128);
+        Load-ListBox `
+            -ListBox $listbox1 `
+            -Items "Please Enter an Account" `
+            -Append
+    }
+    if ($textbox1.Text -ne "") {
+        
+        # If NOT Empty, Back Color of the Textbox1 will be Yellow
+        $textbox1.BackColor =  [System.Drawing.Color]::FromArgb(255, 255, 192)
+    }
+        
+        # In anycase, if the Textbox1 is empty, buttons will be disabled.
+        $buttonCheck.Enabled = $textbox1.Text -ne ""
+        $buttonLock.Enabled = $textbox1.Text -ne ""
+        $buttonUnlock.Enabled = $textbox1.Text -ne ""
+}#$textbox1_TextChanged
+
+# --End User Generated Script--
+#----------------------------------------------
+#region Generated Events
+#----------------------------------------------
+
+$Form_StateCorrection_Load=
+{
+    #Correct the initial state of the form to prevent the .Net maximized form issue
+   # $formUnlocker.WindowState = $InitialFormWindowState
+}
+
+$Form_Cleanup_FormClosed=
+{
+    #Remove all event handlers from the controls
+    try
+    {
+        $buttonUnlock.remove_Click($buttonUnlock_Click)
+        $buttonCheck.remove_Click($buttonCheck_Click)
+        $textbox1.remove_TextChanged($textbox1_TextChanged)
+        $formUnlocker.remove_Load($formUnlocker_Load)
+        $formUnlocker.remove_Load($Form_StateCorrection_Load)
+        $formUnlocker.remove_FormClosed($Form_Cleanup_FormClosed)
+    }
+    catch [Exception]
+    { }
+}
+#----------------------------------------
+#    console Type Listbox
+#----------------------------------------
+
+$Listbox1.Anchor                = 'Bottom'
+
+$listbox1.Font                  = "consolas, 8pt"
+$listbox1.FormattingEnabled     = $True
+$listbox1.ItemHeight            = 15
+$listbox1.Location              = '10, 480'
+$listbox1.Name                  = "listbox1"
+$listbox1.Size                  = '640, 100'
+$listbox1.TabIndex              = 4
+$listbox1.BackColor             = "Azure"
+$listbox1.forecolor             = "Green"
+$mainForm.Controls.Add($Listbox1)
+
+
+#-----------------------------------------
+#   Check Status And Unlock Buttons
+#-----------------------------------------
+$buttonCheck.Anchor = 'Bottom'
+
+$buttonCheck.Font               = New-Object System.Drawing.Font("Verdana",8,[System.Drawing.FontStyle]::Bold)
+$buttonCheck.Location           = '10, 450'
+$buttonCheck.Name               = "buttonCheck"
+$buttonCheck.Size               = '100, 20'
+$buttonCheck.TabIndex           = 1
+$buttonCheck.Text               = "Check Status"
+$buttonCheck.UseVisualStyleBackColor = $True
+$buttonCheck.add_Click($buttonCheck_Click)
+$buttoncheck.BackColor          = "Azure"
+$buttoncheck.FlatStyle          = "Popup"
+$mainForm.Controls.Add($buttoncheck) 
+
+$buttonunlock.Anchor = 'Bottom'
+
+$buttonUnlock.Font              = New-Object System.Drawing.Font("Verdana",8,[System.Drawing.FontStyle]::Bold)
+$buttonUnlock.Location          = '115, 450'
+$buttonUnlock.Name              = "buttonUnlock"
+$buttonUnlock.Size              = '70, 20'
+$buttonUnlock.TabIndex          = 2
+$buttonUnlock.Text              = "Unlock"
+$buttonUnlock.UseVisualStyleBackColor = $True
+$buttonUnlock.add_Click($buttonUnlock_Click)
+$buttonunlock.BackColor         = "Azure"
+$buttonunlock.FlatStyle         = "Popup"
+$mainForm.Controls.Add($buttonunlock)
+
+$buttonCheck                    = New-Object 'System.Windows.Forms.Button'
+$textbox1                       = New-Object 'System.Windows.Forms.TextBox'
+$InitialFormWindowState         = New-Object 'System.Windows.Forms.FormWindowState'
+
+
+####################################################################################################################################################################
+#                                                            Expiration Date
+####################################################################################################################################################################
+
+$BlackLine3                     = New-Object System.Windows.Forms.Label
+$BlackLine3.Location            = "12,152"
+$BlackLine3.Height              = 2
+$BlackLine3.Width               = 102
+$BlackLine3.backcolor           = "Black"
+#$BlackLine.Text = "Account Control"
+$mainForm.Controls.Add($BlackLine3)
+
+
+
+# EXPIRATION DATE
+$selectLabel                    = New-Object System.Windows.Forms.Label
+$selectLabel.Location           = "8,140"
+$selectLabel.Height             = 22
+$selectLabel.Width              = 120
+$SelectLabel.Font               = [System.Drawing.Font]::new("Verdana", 8, [System.Drawing.FontStyle]::Bold)
+$selectLabel.Text               = " Expiration Date  "
+$mainForm.Controls.Add($selectLabel)
+
+
+
+#--------------------------------------------------------------
+#         End Date and Time Pickers
+#--------------------------------------------------------------
+$mainForm.Controls.Add($ExPDate)
+
+#End Date Time Picker
+$EnddatePicker                  = New-Object System.Windows.Forms.DateTimePicker
+$EnddatePicker.Location         = "10,165"
+$EnddatePicker.MinDate          = "01/01/2020"       # Minimum Date Dispalyed
+$EnddatePicker.MaxDate          = "12/31/9998"       # Maximum Date Dispalyed
+
+$mainForm.Controls.Add($EnddatePicker)
+
+$minTimePicker                  = New-Object System.Windows.Forms.DateTimePicker
+$minTimePicker.Location         = "10, 190"
+$minTimePicker.Width            = "150"
+$minTimePicker.Format           = [windows.forms.datetimepickerFormat]::custom
+$minTimePicker.CustomFormat     = "HH:mm:ss"
+$minTimePicker.ShowUpDown       = $TRUE
+$mainForm.Controls.Add($minTimePicker) 
+# End Date Label
+<# $dateTimePickerLabel = New-Object System.Windows.Forms.Label
+$dateTimePickerLabel.Location = "58,180"
+$dateTimePickerLabel.Height = 22
+$dateTimePickerLabel.Width = 50
+$dateTimePickerLabel.Text = "End Date"
+$mainForm.Controls.Add($dateTimePickerLabel) #>
+
+
+
+
+
+
+#--------------------------------------------------------------------------------------------------
+#                    
+#--------------------------------------------------------------------------------------------------
+# Exit Button 
+$goButton                   = New-Object System.Windows.Forms.Button
+$goButton.Location          = "230,166"
+$goButton.Size              = "80,20"
+$goButton.ForeColor         = "Black"
+$goButton.BackColor         = "Azure"
+$goButton.Text              = "Update"
+$gobutton.FlatStyle         = "Popup"
+$goButton.font              = New-Object System.Drawing.Font("Verdana",8,[System.Drawing.FontStyle]::Bold)
+$goButton.add_Click({
+
+
+    $Global:user1 = $Global:EndUser
+    $result = $EnddatePicker.Value 
+    $timeresult = $Mintimepicker.value
+#Time Format
+    $Global:ExpiryResultDate = ($result.ToShortDateString())
+    $global:ExpiryresultTime = ($TimeResult.ToShortTimeString())
+
+#Set Expiration Date through AD 
+        Set-ADAccountExpiration -Identity $Global:User1 -DateTime "$Global:Expiryresultdate $Global:Expiryresulttime"
+#Put this info in console log
+    Load-ListBox `
+    -ListBox $listBox1 `
+    -Items "$Global:User1 - Expiration Date set to $Global:ExpiryresultDate $Global:Expiryresulttime"  `   #Output to terminal
+    -Append
+    
+    write-log "$Global:User1 - Expiration Date set to $Global:ExpiryresultDate $Global:Expiryresulttime    ran by $cred"
+  
+    $ExPDate.Text = "Current ExpirationDate $global:ExpiryResultDate $Global:Expiryresulttime"
+
+   
+})
+    write-output "$Global:User1 - Expiration Date set to $Global:ExpiryresultDate"
+$mainForm.Controls.Add($goButton)
+
+
+
+
+###############################################################################################################################################
+#                                                           Password Change Form
+###############################################################################################################################################
+
+$BlackLine2                     = New-Object System.Windows.Forms.Label
+$BlackLine2.Location            = "12,60"
+$BlackLine2.Height              = 2
+$BlackLine2.Width               = 112
+$BlackLine2.backcolor           = "Black"
+#$BlackLine.Text = "Account Control"
+$mainForm.Controls.Add($BlackLine2)
+
+
+
+$TOPPWLabel                         = New-Object System.Windows.Forms.Label
+$TOPPWLabel.Location                = New-Object System.Drawing.Size(8,47) 
+$TOPPWLabel.Size                    = New-Object System.Drawing.Size(150,20) 
+$TOPPWLabel.font                    = New-Object System.Drawing.Font("Verdana",8,[System.Drawing.FontStyle]::Bold)
+$TOPPWLabel.Text                    = "Password Change"
+$mainForm.Controls.Add($TOPPWLabel) 
+
+
+$Global:MaskedTextBox               = New-Object System.Windows.Forms.TextBox
+#$Global:MaskedTextBox.PasswordChar = '*'
+$Global:MaskedTextBox.Location      = New-Object System.Drawing.Size(10,82) 
+$Global:MaskedTextBox.Size          = New-Object System.Drawing.Size(200,20) 
+$mainForm.Controls.Add($Global:MaskedTextBox) 
+
+
+    $CheckBox1                       = New-Object system.Windows.Forms.CheckBox
+    $CheckBox1.text                  = "Change Password At Next Log in"
+    $CheckBox1.AutoSize              = $false
+    $CheckBox1.width                 = 300
+    $CheckBox1.height                = 20
+    $CheckBox1.location              = New-Object System.Drawing.Point(10,105)
+    $CheckBox1.Font                  = 'Verdana,8'
+    $Checkbox1.checked               = $false
+    $mainForm.Controls.Add($CheckBox1)
+
+$PasswordOKButton                    = New-Object System.Windows.Forms.Button
+$PasswordOKButton.Location           = New-Object System.Drawing.Size(230,82)
+$PasswordOKButton.Size               = New-Object System.Drawing.Size(80,20)
+$PasswordOKButton.font               = New-Object System.Drawing.Font("Verdana",8,[System.Drawing.FontStyle]::Bold)
+$PasswordOKButton.Text               = "Update"
+$PasswordOKButton.BackColor          = "Azure"
+$PasswordOKButton.FlatStyle          = "Popup"
+
+$mainForm.Controls.Add($PasswordOKButton)
+
+
+<# $PasswordCancelButton = New-Object System.Windows.Forms.Button
+$PasswordCancelButton.Location = New-Object System.Drawing.Size(175,300)
+$PasswordCancelButton.Size = New-Object System.Drawing.Size(75,23)
+$PasswordCancelButton.Text = "Cancel"
+$PasswordCancelButton.BackColor = "Azure"
+$PasswordCancelButton.Add_Click({$PWForm.Close()})
+$mainForm.Controls.Add($PasswordCancelButton)
+ #>
+
+$NewPWLabel                     = New-Object System.Windows.Forms.Label
+$NewPWLabel.Location            = New-Object System.Drawing.Size(10,67) 
+$NewPWLabel.Size                = New-Object System.Drawing.Size(280,20) 
+$NewPWLabel.Text                = "Please enter new password"
+$mainForm.Controls.Add($NewPWLabel) 
+
+#$INFOLABELTEXT = get-aduser -identity $Global:EndUser -property * | Select-object  Mail, lastlogondate -expandproperty Mail, Lastlogondate<#`n @{l='OU1';e={$_.DistinguishedName.split(',')[2].split('=')[1]}}, `n @{l='OU2';e={$_.DistinguishedName.split(',')[3].split('=')[1]}},`n @{l='OU3';e={$_.DistinguishedName.split(',')[1].split('=')[1]}} #>
+
+
+
+
+###############################################################################################################################################
+#                                                           Password Change Code
+###############################################################################################################################################
+
+$PasswordOKButton.Add_Click({
+   # Set-ADAccountPassword -Identity $Global:EndUser -Reset -NewPassword (ConvertTo-SecureString -AsPlainText "$MaskedTextbox.text" -Force )
+    Load-ListBox `
+   -ListBox $listBox1 `
+   -Items "$Global:EndUser - Password Changed"  `
+   -Append
+   write-log "$Global:EndUser - Password Changed   ran by $cred"
+#$MaskedTextBox.text = [System.Web.Security.Membership]::GeneratePassword(8, 0)
+ 
+$NewPassword = $Global:MaskedTextBox.Text #| ConvertTo-SecureString -AsPlainText -Force
+Write-host $newpassword 
+Set-ADAccountPassword -identity $Global:EndUser -Reset -NewPassword (ConvertTo-SecureString -AsPlainText  $NewPassword -Force)
+
+$Messageboxbody                 = "password has been Reset to $NewPassword"
+$MessageboxTitle                = "Password Reset"
+$ButtonType                     = [System.Windows.MessageBoxButton]::OK
+$messageicon                    = [System.Windows.MessageBoxImage]::Information
+[System.Windows.MessageBox]::Show($Messageboxbody,$MessageboxTitle,$ButtonType,$messageicon)
+
+$Global:MaskedTextBox.Clear()
+write-host "test $NewPassword $Global:EndUser"
+
+If ($Checkbox1.checked -eq $true)
+{Set-ADuser -Identity $Global:EndUser -ChangePasswordAtLogon $True
+    Load-ListBox `
+    -ListBox $listBox1 `
+    -Items "$Global:EndUser - Must Change Password at next Log on"  `
+    -Append 
+    write-log "$Global:EndUser - Must Change Password at next Log on     ran by $cred"
+ }else{
+    Set-ADuser -Identity $Global:EndUser -ChangePasswordAtLogon $false
+}  
+})
+
+###############################################################################################################################################
+#                                                          Remote DP
+###############################################################################################################################################
+
+$BlackLine5                         = New-Object System.Windows.Forms.Label
+$BlackLine5.Location                = "385,360"
+$BlackLine5.Height                  = 2
+$BlackLine5.Width                   = 105
+$BlackLine5.backcolor               = "Black"
+#$BlackLine.Text = "Account Control"
+$mainForm.Controls.Add($BlackLine5)
+
+$NewPCLabel                         = New-Object System.Windows.Forms.Label
+$NewPCLabel.Location                = New-Object System.Drawing.Size(383,365) 
+$NewPCLabel.Size                    = New-Object System.Drawing.Size(280,15) 
+$NewPCLabel.Text                    = "Enter ID_ or I.P"
+$NewpcLabel.backcolor               = "Transparent"
+$mainForm.Controls.Add($NewPCLabel) 
+
+$TOPPCLabel                         = New-Object System.Windows.Forms.Label
+$TOPPCLabel.Location                = New-Object System.Drawing.Size(383,348) 
+$TOPPCLabel.Size                    = New-Object System.Drawing.Size(150,20) 
+$TOPPCLabel.font                    = New-Object System.Drawing.Font("Verdana",8,[System.Drawing.FontStyle]::Bold)
+$TOPPCLabel.Text                    = "Remote Connect"
+$mainForm.Controls.Add($TOPPCLabel)
+
+
+
+$Global:PCTextBox                   = New-Object System.Windows.Forms.TextBox
+#$Global:MaskedTextBox.PasswordChar = '*'
+$Global:PCTextBox.Location          = New-Object System.Drawing.Size(383, 385) 
+$Global:PCTextBox.Size              = New-Object System.Drawing.Size(120,20) 
+$Global:PCTextbox.text              = "ID_"
+$mainForm.Controls.Add($Global:PCTextBox) 
+
+
+$PCOKButton                       = New-Object System.Windows.Forms.Button
+$PCOKButton.Location              = New-Object System.Drawing.Size(505,385)
+$PCOKButton.Size                  = New-Object System.Drawing.Size(50,20)
+$PCOKButton.font                  = New-Object System.Drawing.Font("Verdana",8,[System.Drawing.FontStyle]::Bold)
+$PCOKButton.Text                  = "Cmrc"
+$PCOKButton.BackColor             = "Azure"
+$PCOKButton.FlatStyle             = "Popup"
+
+$VNCButton                       = New-Object System.Windows.Forms.Button
+$VNCButton.Location              = New-Object System.Drawing.Size(557,385)
+$VNCButton.Size                  = New-Object System.Drawing.Size(50,20)
+$VNCButton.font                  = New-Object System.Drawing.Font("Verdana",8,[System.Drawing.FontStyle]::Bold)
+$VNCButton.Text                  = "VNC"
+$VNCButton.BackColor             = "Azure"
+$VNCButton.FlatStyle             = "Popup"
+
+$PCCdriveButton                   = New-Object System.Windows.Forms.Button
+$PCCdriveButton.Location          = New-Object System.Drawing.Size(505,407)
+$PCCdriveButton.Size              = New-Object System.Drawing.Size(50,20)
+$PCCdriveButton.font              = New-Object System.Drawing.Font("Verdana",8,[System.Drawing.FontStyle]::Bold)
+$PCCdriveButton.Text              = "C$"
+$PCCdriveButton.BackColor         = "Azure"
+$PCCdriveButton.FlatStyle         = "Popup"
+
+$mainForm.Controls.Add($PCOKButton)
+$mainForm.Controls.Add($PCCdriveButton)
+$mainform.controls.Add($VNCButton)
+
+$PCOKButton.Add_Click({
+$PCID = $Global:PCTextBox.Text #| ConvertTo-SecureString -AsPlainText -Force
+Write-host $PCID
+
+
+Start-Process "C:\Program Files (x86)\Microsoft Configuration Manager\RemoteControlViewer\CmRcViewer.exe" "$PCID"
+
+
+})
+
+$VNCButton.add_click({
+   # $PW = ""
+    $PCID3 = $Global:PCTextBox.Text #| ConvertTo-SecureString -AsPlainText -Force
+    $ChkFile = "C:\Program Files\RealVNC\VNC Viewer\vncviewer.exe"
+    $fileexists = test-path $ChkFile
+    Write-host $PCID3
+    if ($fileExists -eq $true)
+    {
+    Start-Process "C:\Program Files\RealVNC\VNC Viewer\vncviewer.exe" "$PCID3"
+    
+}Else{ Start-Process "C:\Program Files\TightVNC\tvnviewer.exe" "$PCID3"}
+
+
+})
+
+$PCCdriveButton.Add_Click({
+    $PCID2 = $Global:PCTextBox.Text #| ConvertTo-SecureString -AsPlainText -Force
+    Write-host $PCID2
+    Invoke-Item "\\$PCID2\c$"
+
+})
+
+
+
+
+###############################################################################################################################################
+#                                                           User Info Box
+###############################################################################################################################################
+
+
+
+
+$BlackLine4                  = New-Object System.Windows.Forms.Label
+$BlackLine4.Location         = "382,60"
+$BlackLine4.Height           = 2
+$BlackLine4.Width            = 107
+$BlackLine4.backcolor        = "Black"
+#$BlackLine.Text = "Account Control"
+$mainForm.Controls.Add($BlackLine4)
+
+
+
+# EXPIRATION DATE
+$USERINFOLabel               = New-Object System.Windows.Forms.Label
+$USERINFOLabel.Location      = "380,47"
+$USERINFOLabel.Height        = 22
+$USERINFOLabel.Width         = 700
+$USERINFOLabel.Font          = [System.Drawing.Font]::new("Verdana", 8, [System.Drawing.FontStyle]::Bold)
+$USERINFOLabel.Text          = "User Information  "
+$mainForm.Controls.Add($USERINFOLabel)
+
+
+
+
+<# $AccountInfoLabel2 = New-Object System.Windows.Forms.label
+$AccountInfoLabel2.Font = "Verdana, 9.75pt"
+#$AccountInfoLabel.FormattingEnabled = $True
+#$AccountInfoLabel.ItemHeight = 15
+$AccountInfoLabel2.Name = "AccountInfoLabel2"
+$AccountInfoLabel2.BackColor = "Transparent"
+$AccountInfoLabel2.Location = New-Object System.Drawing.Size(380,70) 
+$AccountInfoLabel2.Size = New-Object System.Drawing.Size(250,250) 
+$AccountInfoLabel2.text = " Email:  `n $Global:MailInfo `n `n LastLogonDate: `n $LLtime`n `n OU:`n $OU1 `n $OU2 `n $OU3 `n $OU4 `n $OU5 `n $OU6 `n `n Enabled: $EnabledCheck"
+
+
+$mainForm.Controls.Add($AccountInfoLabel2) #>
+
+
+$BlackLinemove                  = New-Object System.Windows.Forms.Label
+$BlackLinemove.Location         = "12,232"
+$BlackLinemove.Height           = 2
+$BlackLinemove.Width            = 87
+$BlackLinemove.backcolor        = "Black"
+#$BlackLine.Text = "Account Control"
+$mainForm.Controls.Add($BlackLinemove)
+
+
+
+# EXPIRATION DATE
+$MOVELabel                      = New-Object System.Windows.Forms.Label
+$MOVELabel.Location             = "10,220"
+$MOVELabel.Height               = 22
+$MOVELabel.Width                = 700
+$MOVELabel.Font                 = [System.Drawing.Font]::new("Verdana", 8, [System.Drawing.FontStyle]::Bold)
+$MOVELabel.Text                 = "Move User OU"
+$mainForm.Controls.Add($MOVELabel)
+
+
+    $mainform.Controls.Add($nodepath)
+	$mainform.Controls.Add($nodename)
+	$mainform.Controls.Add($treeview1)
+    $mainform.Controls.Add($treebuttonOK)
+    $mainform.add_Load($FormEvent_Load)
+
+    $nodepath.anchor                = 'bottom'
+	$nodepath.Location              = '10, 425'
+	$nodepath.Name                  = "nodepath"
+	$nodepath.Size                  = '300, 20'
+	$nodepath.TabIndex              = 3
+
+    $nodename.Anchor                = 'Bottom'
+    $nodename.Location              = '10, 402'
+	$nodename.Name                  = "nodename"
+	$nodename.Size                  = '220, 20'
+	$nodename.TabIndex              = 2
+
+    $treeview1.anchor               = 'top, bottom, left, right'
+    #$Treeview1.dock = 'none'
+    $treeview1.Location             = '10, 250'
+	$treeview1.Name                 = "treeview1"
+	$treeview1.Size                 = '300, 150'
+	$treeview1.TabIndex             = 1
+    $treeview1.add_NodeMouseClick($treeview1_NodeMouseClick)
+    
+    $TreebuttonOK.Anchor            = 'Bottom'
+	#$TreebuttonOK.DialogResult = 'OK'
+	$TreebuttonOK.Location          = '235, 403'
+	$TreebuttonOK.Name              = "buttonOK"
+	$TreebuttonOK.Size              = '75, 20'
+	$TreebuttonOK.TabIndex          = 0
+    $TreebuttonOK.Text              = "OK"
+    $TreebuttonOK.FlatStyle         = "Popup"
+    $TreebuttonOK.Font              = New-Object System.Drawing.Font("Verdana",8,[System.Drawing.FontStyle]::Bold)
+	$TreebuttonOK.BackColor          = "azure"
+    $TreebuttonOK.add_click({
+     $targetou = $nodepath.text
+     $TreeUser = get-aduser $global:enduser | select-object distinguishedname -expandproperty distinguishedname 
+      $nodename1 = $thisOU.Name
+                 move-adobject -identity $treeuser -targetpath $targetOU
+
+                 write-host $global:enduser moved to $nodename
+    
+                 Load-ListBox `
+                 -ListBox $listBox1 `
+                 -Items "$Global:EndUser - Moved to $nodename1 "  `
+                 -Append
+                 write-log "$Global:EndUser - Moved to $nodename1     ran by $cred"
+     })
+
+
+
+
+
+
+
+
+
+$buttoncompareAD.Anchor         = 'Bottom'
+
+$buttonCompareAD.Font           = New-Object System.Drawing.Font("Verdana",8,[System.Drawing.FontStyle]::Bold)
+$buttonCompareAD.Location       = '505, 450'
+$buttonCompareAD.Name           = "NewSearch"
+$buttonCompareAD.Size           = '90, 20'
+$buttonCompareAD.TabIndex       = 1
+$buttonCompareAD.Text           = "Compare AD"
+$buttonCompareAD.UseVisualStyleBackColor = $True
+$buttonCompareAD.add_Click($buttonCompareAD_click)
+$buttonCompareAD.BackColor      = "Azure"
+$buttonCompareAD.FlatStyle      = "Popup"
+$mainForm.Controls.Add($buttonCompareAD) 
+$buttonCompareAD.Add_Click(
+    {    
+        start-process -FilePath "\\sancifs\intech\Shared\Service_Delivery\IT_Support\IT_Automation\AD Groups Compare and Share\ISM2\obj\Debug\ISM2.exe"
+    }
+)
+
+$ButtonNewsearch.Anchor         = 'Bottom'
+
+$buttonNewSearch.Font           = New-Object System.Drawing.Font("Verdana",8,[System.Drawing.FontStyle]::Bold)
+$buttonNewSearch.Location       = '600, 450'
+$buttonNewSearch.Name           = "NewSearch"
+$buttonNewSearch.Size           = '50, 20'
+$buttonNewSearch.TabIndex       = 1
+$buttonNewSearch.Text           = "Exit"
+$buttonNewSearch.UseVisualStyleBackColor = $True
+$buttonNewSearch.add_Click($buttonNewSearch_Click)
+$buttonNewSearch.BackColor      = "Azure"
+$buttonNewSearch.FlatStyle      = "Popup"
+$mainForm.Controls.Add($buttonNewSearch) 
+
+
+$ButtonNewSearch.Add_Click({
+    $mainform.Close()
+    $Mainform.dispose()
+})
+$MAINform.ResumeLayout()
+#endregion Generated Form Code
+$InitialFormWindowState         = $mainform.WindowState
+#Init the OnLoad event to correct the initial state of the form
+$mainform.add_Load($Form_StateCorrection_Load)
+#Clean up the control events
+$mainform.add_FormClosed($Form_Cleanup_FormClosed)
+$MainForm.AcceptButton          = $SearchButton
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+[void] $mainForm.ShowDialog()
+
+
+
+
+
+ 
+
+
+
+
+
+
